@@ -87,6 +87,28 @@ export default function AdminPage() {
 
   useEffect(() => {
     async function loadDashboard() {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const session = sessionData.session;
+
+      if (!session) {
+        setError("Sign in with an admin account to view this dashboard.");
+        setLoading(false);
+        return;
+      }
+
+      const { data: refreshedSessionData, error: refreshError } =
+        await supabase.auth.refreshSession();
+      const refreshedSession = refreshedSessionData.session ?? session;
+
+      if (
+        refreshError ||
+        refreshedSession.user.app_metadata?.role !== "admin"
+      ) {
+        setError("This account does not have admin access.");
+        setLoading(false);
+        return;
+      }
+
       const [productsResult, reviewsResult, ordersResult] = await Promise.all([
         supabase
           .from("products")
@@ -102,13 +124,15 @@ export default function AdminPage() {
           .order("created_at", { ascending: false }),
       ]);
 
-      const failedResult = [productsResult, reviewsResult, ordersResult].find(
-        (result) => result.error,
-      );
+      const failedResult = [
+        { name: "products", result: productsResult },
+        { name: "reviews", result: reviewsResult },
+        { name: "orders", result: ordersResult },
+      ].find(({ result }) => result.error);
 
-      if (failedResult?.error) {
+      if (failedResult?.result.error) {
         setError(
-          "Unable to load admin data. Confirm that your account has the admin role.",
+          `Unable to load ${failedResult.name}: ${failedResult.result.error.message} (${failedResult.result.error.code ?? "unknown error"})`,
         );
       } else {
         setProducts(productsResult.data ?? []);

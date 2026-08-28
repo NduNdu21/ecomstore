@@ -15,6 +15,7 @@ import { supabase } from "../utils/supabase";
 export default function Navbar() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -23,12 +24,14 @@ export default function Navbar() {
     void supabase.auth.getSession().then(({ data }) => {
       if (isMounted) {
         setIsLoggedIn(Boolean(data.session));
+        setIsAdmin(data.session?.user.app_metadata?.role === "admin");
       }
     });
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setIsLoggedIn(Boolean(session));
+        setIsAdmin(session?.user.app_metadata?.role === "admin");
       },
     );
 
@@ -128,6 +131,16 @@ export default function Navbar() {
                 >
                   <FiSettings aria-hidden="true" /> Settings
                 </Link>
+                {isAdmin ? (
+                  <Link
+                    href="/admin"
+                    role="menuitem"
+                    className="flex items-center gap-3 px-3 py-2.5 text-sm transition-colors hover:bg-[#1f2a24]/10 hover:text-[#c95d3f]"
+                    onClick={() => setIsProfileOpen(false)}
+                  >
+                    <FiSettings aria-hidden="true" /> Admin dashboard
+                  </Link>
+                ) : null}
                 {isLoggedIn ? (
                   <button
                     type="button"
