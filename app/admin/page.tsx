@@ -1,11 +1,13 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import {
   FiAlertCircle,
   FiCheckCircle,
   FiClock,
   FiPackage,
+  FiPlus,
   FiStar,
   FiTruck,
 } from "react-icons/fi";
@@ -14,10 +16,21 @@ import { supabase } from "../../utils/supabase";
 type Product = {
   id: string;
   name: string;
+  slug: string;
   price: number | string;
   stock_quantity: number;
   is_active: boolean;
   image_url: string | null;
+};
+
+type ProductDraft = {
+  id?: string;
+  name: string;
+  slug: string;
+  price: string;
+  stock_quantity: string;
+  image_url: string;
+  is_active: boolean;
 };
 
 type Review = {
@@ -73,9 +86,23 @@ function formatMoney(value: number | string, currency: string) {
 
 function getProductImageUrl(imagePath: string | null) {
   if (!imagePath) return null;
+  // If it's already a full URL, return it as-is
+  if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
+    return imagePath;
+  }
+  // Otherwise, construct the public URL from the filename
   return supabase.storage.from("product-images").getPublicUrl(imagePath).data
     .publicUrl;
 }
+
+const emptyProductDraft = (): ProductDraft => ({
+  name: "",
+  slug: "",
+  price: "",
+  stock_quantity: "0",
+  image_url: "",
+  is_active: true,
+});
 
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<DashboardTab>("inventory");
@@ -84,6 +111,85 @@ export default function AdminPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showProductForm, setShowProductForm] = useState(false);
+  const [productDraft, setProductDraft] = useState<ProductDraft>(emptyProductDraft());
+
+  async function handleProductSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const nextSlug =
+      (productDraft.slug || productDraft.name)
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/(^-|-$)/g, "") || "product";
+
+    const payload = {
+      name: productDraft.name.trim(),
+      slug: nextSlug,
+      price: Number(productDraft.price || 0),
+      stock_quantity: Number(productDraft.stock_quantity || 0),
+      image_url: productDraft.image_url.trim(),
+      is_active: productDraft.is_active,
+    };
+
+    if (!payload.name) {
+      setError("Product name is required.");
+      return;
+    }
+
+    if (!Number.isFinite(payload.price) || payload.price < 0) {
+      setError("Price must be a valid non-negative number.");
+      return;
+    }
+
+    const isUpdating = Boolean(productDraft.id);
+    const query = isUpdating
+      ? supabase.from("products").update(payload).eq("id", productDraft.id)
+      : supabase.from("products").insert(payload);
+
+    const { error: submitError } = await query;
+
+    if (submitError) {
+      setError(`Unable to save product: ${submitError.message}`);
+      return;
+    }
+
+    const { data: refreshedProducts, error: refreshError } = await supabase
+      .from("products")
+      .select("id, name, slug, price, stock_quantity, is_active, image_url")
+      .order("created_at", { ascending: false });
+
+    if (refreshError) {
+      setError(`Product saved, but a refresh failed: ${refreshError.message}`);
+      return;
+    }
+
+    setProducts(refreshedProducts ?? []);
+    setShowProductForm(false);
+    setProductDraft(emptyProductDraft());
+    setError(null);
+  }
+
+  function openNewProductForm() {
+    setProductDraft(emptyProductDraft());
+    setShowProductForm(true);
+    setError(null);
+  }
+
+  function openEditProductForm(product: Product) {
+    setProductDraft({
+      id: product.id,
+      name: product.name,
+      slug: product.slug,
+      price: String(product.price),
+      stock_quantity: String(product.stock_quantity),
+      image_url: product.image_url ?? "",
+      is_active: product.is_active,
+    });
+    setShowProductForm(true);
+    setError(null);
+  }
 
   useEffect(() => {
     async function loadDashboard() {
@@ -203,10 +309,120 @@ export default function AdminPage() {
               Admin dashboard
             </h1>
           </div>
-          <p className="max-w-xs text-sm leading-6 text-[#1f2a24]/60">
-            Keep the catalog, customer feedback, and fulfillment moving.
-          </p>
+          <div className="flex items-center gap-3">
+            <p className="max-w-xs text-sm leading-6 text-[#1f2a24]/60">
+              Keep the catalog, customer feedback, and fulfillment moving.
+            </p>
+            <button
+              type="button"
+              onClick={openNewProductForm}
+              className="inline-flex items-center gap-2 bg-[#1f2a24] px-4 py-2 text-sm font-medium text-[#f4f0e8] transition hover:bg-[#2b3a34]"
+            >
+              <FiPlus aria-hidden="true" /> Add product
+            </button>
+          </div>
         </header>
+
+        {showProductForm ? (
+          <form onSubmit={handleProductSubmit} className="mt-6 grid gap-4 border border-[#1f2a24]/15 bg-[#f3eee7] p-5 md:grid-cols-2">
+            <label className="text-sm font-medium text-[#1f2a24] md:col-span-2">
+              Product name
+              <input
+                required
+                value={productDraft.name}
+                onChange={(event) =>
+                  setProductDraft((current) => ({ ...current, name: event.target.value }))
+                }
+                className="mt-2 w-full border border-[#1f2a24]/20 bg-white px-3 py-2 text-sm outline-none focus:border-[#c95d3f]"
+              />
+            </label>
+
+            <label className="text-sm font-medium text-[#1f2a24]">
+              Slug
+              <input
+                value={productDraft.slug}
+                onChange={(event) =>
+                  setProductDraft((current) => ({ ...current, slug: event.target.value }))
+                }
+                className="mt-2 w-full border border-[#1f2a24]/20 bg-white px-3 py-2 text-sm outline-none focus:border-[#c95d3f]"
+              />
+            </label>
+
+            <label className="text-sm font-medium text-[#1f2a24]">
+              Price
+              <input
+                required
+                type="number"
+                min="0"
+                step="0.01"
+                value={productDraft.price}
+                onChange={(event) =>
+                  setProductDraft((current) => ({ ...current, price: event.target.value }))
+                }
+                className="mt-2 w-full border border-[#1f2a24]/20 bg-white px-3 py-2 text-sm outline-none focus:border-[#c95d3f]"
+              />
+            </label>
+
+            <label className="text-sm font-medium text-[#1f2a24]">
+              Stock quantity
+              <input
+                type="number"
+                min="0"
+                value={productDraft.stock_quantity}
+                onChange={(event) =>
+                  setProductDraft((current) => ({
+                    ...current,
+                    stock_quantity: event.target.value,
+                  }))
+                }
+                className="mt-2 w-full border border-[#1f2a24]/20 bg-white px-3 py-2 text-sm outline-none focus:border-[#c95d3f]"
+              />
+            </label>
+
+            <label className="text-sm font-medium text-[#1f2a24] md:col-span-2">
+              Image URL
+              <input
+                value={productDraft.image_url}
+                onChange={(event) =>
+                  setProductDraft((current) => ({ ...current, image_url: event.target.value }))
+                }
+                className="mt-2 w-full border border-[#1f2a24]/20 bg-white px-3 py-2 text-sm outline-none focus:border-[#c95d3f]"
+                placeholder="product-images/filename.png"
+              />
+            </label>
+
+            <label className="flex items-center gap-2 text-sm font-medium text-[#1f2a24] md:col-span-2">
+              <input
+                type="checkbox"
+                checked={productDraft.is_active}
+                onChange={(event) =>
+                  setProductDraft((current) => ({ ...current, is_active: event.target.checked }))
+                }
+              />
+              Active product
+            </label>
+
+            <div className="flex items-center gap-3 md:col-span-2">
+              <button
+                type="submit"
+                className="bg-[#c95d3f] px-4 py-2 text-sm font-medium text-white hover:bg-[#b74f34]"
+              >
+                {productDraft.id ? "Save product" : "Create product"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowProductForm(false);
+                  setProductDraft(emptyProductDraft());
+                  setError(null);
+                }}
+                className="border border-[#1f2a24]/20 px-4 py-2 text-sm font-medium text-[#1f2a24]"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        ) : null}
 
         <section className="grid gap-px border-b border-[#1f2a24]/15 bg-[#1f2a24]/15 sm:grid-cols-3">
           <SummaryItem
@@ -256,7 +472,10 @@ export default function AdminPage() {
         ) : (
           <div className="pt-6">
             {activeTab === "inventory" ? (
-              <InventoryTable products={products} />
+              <InventoryTable
+                products={products}
+                onEditProduct={openEditProductForm}
+              />
             ) : activeTab === "reviews" ? (
               <ReviewsTable reviews={reviews} onToggle={updateReview} />
             ) : (
@@ -291,7 +510,13 @@ function SummaryItem({
   );
 }
 
-function InventoryTable({ products }: { products: Product[] }) {
+function InventoryTable({
+  products,
+  onEditProduct,
+}: {
+  products: Product[];
+  onEditProduct: (product: Product) => void;
+}) {
   return (
     <div className="overflow-x-auto border-y border-[#1f2a24]/15">
       <table className="w-full min-w-155 text-left text-sm">
@@ -311,10 +536,25 @@ function InventoryTable({ products }: { products: Product[] }) {
                 <td className="flex items-center gap-3 py-4">
                   <div className="size-12 shrink-0 overflow-hidden bg-[#e7e0d4]">
                     {imageUrl ? (
-                      <img src={imageUrl} alt="" className="size-full object-cover" />
+                      <Image
+                        src={imageUrl}
+                        alt={product.name}
+                        width={48}
+                        height={60}
+                        className="size-full object-cover"
+                      />
                     ) : null}
                   </div>
-                  <span className="font-medium">{product.name}</span>
+                  <div>
+                    <span className="font-medium">{product.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => onEditProduct(product)}
+                      className="mt-1 block text-left text-xs text-[#c95d3f] hover:underline"
+                    >
+                      Edit
+                    </button>
+                  </div>
                 </td>
                 <td>{formatMoney(product.price, "USD")}</td>
                 <td className={product.stock_quantity < 5 ? "text-[#c95d3f]" : ""}>
