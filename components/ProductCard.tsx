@@ -27,10 +27,12 @@ type ProductCardProps = {
 };
 
 function getProductImageUrl(imagePath: string | null) {
-  if (!imagePath) {
-    return null;
+  if (!imagePath) return null;
+  // If it's already a full URL, return it as-is
+  if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
+    return imagePath;
   }
-
+  // Otherwise, construct the public URL from the filename
   return supabase.storage.from("product-images").getPublicUrl(imagePath).data
     .publicUrl;
 }
