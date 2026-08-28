@@ -16,6 +16,8 @@ export type Product = {
   rating?: number | null;
   review_count?: number | null;
   is_new?: boolean;
+  stock_quantity?: number | null;
+  created_at?: string;
 };
 
 type ProductCardProps = {

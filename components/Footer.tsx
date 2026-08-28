@@ -42,7 +42,7 @@ export default function Footer() {
             Explore
           </h2>
           <div className="mt-5 flex flex-col items-start gap-3 text-sm">
-            <a className="transition-colors hover:text-[#c95d3f]" href="#shop">
+            <a className="transition-colors hover:text-[#c95d3f]" href="/shop">
               Shop
             </a>
             <a className="transition-colors hover:text-[#c95d3f]" href="#about">

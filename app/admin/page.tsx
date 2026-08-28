@@ -218,7 +218,9 @@ export default function AdminPage() {
       const [productsResult, reviewsResult, ordersResult] = await Promise.all([
         supabase
           .from("products")
-          .select("id, name, price, stock_quantity, is_active, image_url")
+          .select(
+            "id, name, slug, price, stock_quantity, is_active, image_url",
+          )
           .order("created_at", { ascending: false }),
         supabase
           .from("reviews")
