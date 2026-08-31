@@ -558,7 +558,7 @@ function InventoryTable({
                     </button>
                   </div>
                 </td>
-                <td>{formatMoney(product.price, "USD")}</td>
+                <td>{formatMoney(product.price, "GBP")}</td>
                 <td className={product.stock_quantity < 5 ? "text-[#c95d3f]" : ""}>
                   {product.stock_quantity}
                 </td>
