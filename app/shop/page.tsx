@@ -5,6 +5,7 @@ import { FiSearch, FiSliders } from "react-icons/fi";
 import Footer from "../../components/Footer";
 import Navbar from "../../components/Navbar";
 import ProductCard, { type Product } from "../../components/ProductCard";
+import { addToBasket } from "../../utils/basket";
 import { supabase } from "../../utils/supabase";
 
 const sortOptions = [
@@ -97,6 +98,10 @@ export default function ShopPage() {
     });
   }, [products, searchTerm, selectedAvailability, sortBy]);
 
+  function handleAddToCart(product: Product) {
+    addToBasket(product);
+  }
+
   return (
     <main className="min-h-screen bg-[#f4f0e8] text-[#1f2a24]">
       <Navbar />
@@ -177,7 +182,7 @@ export default function ShopPage() {
               <ProductCard
                 key={product.id}
                 product={product}
-                onAddToCart={() => undefined}
+                onAddToCart={handleAddToCart}
                 onToggleWishlist={() => undefined}
               />
             ))}

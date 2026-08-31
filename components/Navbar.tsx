@@ -10,12 +10,14 @@ import {
   FiShoppingBag,
   FiUser,
 } from "react-icons/fi";
+import { getBasketCount } from "../utils/basket";
 import { supabase } from "../utils/supabase";
 
 export default function Navbar() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [basketCount, setBasketCount] = useState(0);
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -42,6 +44,14 @@ export default function Navbar() {
   }, []);
 
   useEffect(() => {
+    setBasketCount(getBasketCount());
+
+    function syncBasketCount() {
+      setBasketCount(getBasketCount());
+    }
+
+    window.addEventListener("basket:updated", syncBasketCount);
+
     function closeMenu(event: MouseEvent) {
       if (
         profileMenuRef.current &&
@@ -61,6 +71,7 @@ export default function Navbar() {
     document.addEventListener("keydown", closeMenuOnEscape);
 
     return () => {
+      window.removeEventListener("basket:updated", syncBasketCount);
       document.removeEventListener("mousedown", closeMenu);
       document.removeEventListener("keydown", closeMenuOnEscape);
     };
@@ -164,12 +175,17 @@ export default function Navbar() {
             ) : null}
           </div>
           <a
-            aria-label="Shopping cart"
-            className="flex size-10 items-center justify-center rounded-full text-xl transition-colors hover:bg-[#1f2a24]/10"
+            aria-label={`Shopping cart with ${basketCount} items`}
+            className="relative flex size-10 items-center justify-center rounded-full text-xl transition-colors hover:bg-[#1f2a24]/10"
             href="#cart"
             title="Shopping cart"
           >
             <FiShoppingBag aria-hidden="true" />
+            {basketCount > 0 ? (
+              <span className="absolute -right-1 -top-1 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-[#c95d3f] px-1 text-[10px] font-semibold text-white">
+                {basketCount}
+              </span>
+            ) : null}
           </a>
           <a
             aria-label="Wishlist"
