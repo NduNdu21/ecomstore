@@ -50,6 +50,17 @@ export function getBasketCount(): number {
   );
 }
 
+export function persistBasket(basket: BasketItem[]) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(BASKET_STORAGE_KEY, JSON.stringify(basket));
+  window.dispatchEvent(
+    new CustomEvent("basket:updated", { detail: { count: getBasketCount() } }),
+  );
+}
+
 export function addToBasket(product: {
   id: string;
   name: string;
@@ -80,8 +91,25 @@ export function addToBasket(product: {
     });
   }
 
-  window.localStorage.setItem(BASKET_STORAGE_KEY, JSON.stringify(basket));
-  window.dispatchEvent(new CustomEvent("basket:updated", { detail: { count: getBasketCount() } }));
+  persistBasket(basket);
 
   return basket;
+}
+
+export function removeFromBasket(productId: string): BasketItem[] {
+  const basket = getBasketItems().filter((item) => item.id !== productId);
+  persistBasket(basket);
+  return basket;
+}
+
+export function updateBasketQuantity(productId: string, quantity: number): BasketItem[] {
+  const basket = getBasketItems().map((item) =>
+    item.id === productId
+      ? { ...item, quantity: Math.max(0, Number(quantity) || 0) }
+      : item,
+  );
+
+  const nextBasket = basket.filter((item) => item.quantity > 0);
+  persistBasket(nextBasket);
+  return nextBasket;
 }

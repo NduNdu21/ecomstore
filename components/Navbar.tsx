@@ -10,6 +10,7 @@ import {
   FiShoppingBag,
   FiUser,
 } from "react-icons/fi";
+import CartDrawer from "./CartDrawer";
 import { getBasketCount } from "../utils/basket";
 import { supabase } from "../utils/supabase";
 
@@ -17,7 +18,10 @@ export default function Navbar() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [basketCount, setBasketCount] = useState(0);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [basketCount, setBasketCount] = useState(() =>
+    typeof window === "undefined" ? 0 : getBasketCount(),
+  );
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -44,8 +48,6 @@ export default function Navbar() {
   }, []);
 
   useEffect(() => {
-    setBasketCount(getBasketCount());
-
     function syncBasketCount() {
       setBasketCount(getBasketCount());
     }
@@ -174,11 +176,12 @@ export default function Navbar() {
               </div>
             ) : null}
           </div>
-          <a
+          <button
+            type="button"
             aria-label={`Shopping cart with ${basketCount} items`}
             className="relative flex size-10 items-center justify-center rounded-full text-xl transition-colors hover:bg-[#1f2a24]/10"
-            href="#cart"
             title="Shopping cart"
+            onClick={() => setIsCartOpen(true)}
           >
             <FiShoppingBag aria-hidden="true" />
             {basketCount > 0 ? (
@@ -186,7 +189,7 @@ export default function Navbar() {
                 {basketCount}
               </span>
             ) : null}
-          </a>
+          </button>
           <a
             aria-label="Wishlist"
             className="flex size-10 items-center justify-center rounded-full text-2xl transition-colors hover:bg-[#1f2a24]/10"
@@ -209,6 +212,8 @@ export default function Navbar() {
           Contact
         </a>
       </div>
+
+      <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
     </nav>
   );
 }
